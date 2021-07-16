@@ -25,6 +25,7 @@ func main() {
 	radiusAddr := flag.String("radius.address", getEnv("RADIUS_ADDR", "127.0.0.1:18121"), "Address of FreeRADIUS status server.")
 	homeServers := flag.String("radius.homeservers", getEnv("RADIUS_HOMESERVERS", ""), "List of FreeRADIUS home servers to check, e.g. '172.28.1.2:1812,172.28.1.3:1812'.")
 	radiusSecret := flag.String("radius.secret", getEnv("RADIUS_SECRET", "adminsecret"), "FreeRADIUS client secret.")
+	radiusAlias := flag.String("radius.alias", getEnv("RADIUS_ALIAS", "radius"), "FreeRADIUS client secret.")
 	appVersion := flag.Bool("version", false, "Display version information")
 
 	flag.Parse()
@@ -38,12 +39,12 @@ func main() {
 
 	hs := strings.Split(*homeServers, ",")
 
-	radiusClient, err := client.NewFreeRADIUSClient(*radiusAddr, hs, *radiusSecret, *radiusTimeout)
+	radiusClient, err := client.NewFreeRADIUSClient(*radiusAddr, hs, *radiusSecret, *radiusTimeout, *radiusAlias)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	registry.MustRegister(collector.NewFreeRADIUSCollector(radiusClient))
+	registry.MustRegister(collector.NewFreeRADIUSCollector(radiusClient, *radiusAlias))
 
 	http.Handle(*metricsPath, promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

@@ -89,6 +89,7 @@ type Internal struct {
 // FreeRADIUSClient fetches metrics from status server.
 type FreeRADIUSClient struct {
 	mainAddr string
+	alias    string
 	packets  []packetWrapper
 	timeout  time.Duration
 	metrics  map[string]*prometheus.Desc
@@ -96,6 +97,7 @@ type FreeRADIUSClient struct {
 
 type packetWrapper struct {
 	address string
+	alias   string
 	packet  *radius.Packet
 }
 
@@ -143,16 +145,17 @@ func newPacket(secret []byte, address string, statAttr radius.Attribute) (*radiu
 }
 
 // NewFreeRADIUSClient creates an FreeRADIUSClient.
-func NewFreeRADIUSClient(addr string, homeServers []string, secret string, timeout int) (*FreeRADIUSClient, error) {
+func NewFreeRADIUSClient(addr string, homeServers []string, secret string, timeout int, alias string) (*FreeRADIUSClient, error) {
 	client := &FreeRADIUSClient{}
 	client.mainAddr = addr
+	client.alias = alias
 	client.timeout = time.Duration(timeout) * time.Millisecond
 	client.metrics = metrics
 	packet, err := newPacket([]byte(secret), addr, radius.NewInteger(uint32(freeradius.StatisticsTypeAll)))
 	if err != nil {
 		log.Fatalf("failed creating new packet for address '%v'\n", addr)
 	}
-	client.packets = append(client.packets, packetWrapper{packet: packet, address: addr})
+	client.packets = append(client.packets, packetWrapper{packet: packet, address: addr, alias: alias})
 
 	// add home server stats
 	for _, hs := range homeServers {
@@ -200,320 +203,320 @@ func (f *FreeRADIUSClient) Stats() ([]prometheus.Metric, error) {
 		}
 
 		stats.Error = statsErr
-		m := prometheus.MustNewConstMetric(f.metrics["freeradius_stats_error"], prometheus.GaugeValue, 1, stats.Error, p.address)
+		m := prometheus.MustNewConstMetric(f.metrics["freeradius_stats_error"], prometheus.GaugeValue, 1, stats.Error, p.alias)
 		allStats = append(allStats, m)
 
 		if stats.Server.LastPacketRecv, err = freeradius.GetDate(response, freeradius.LastPacketRecv); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_last_packet_recv"], prometheus.GaugeValue, float64(stats.Server.LastPacketRecv.Unix()), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_last_packet_recv"], prometheus.GaugeValue, float64(stats.Server.LastPacketRecv.Unix()), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 		if stats.Server.LastPacketSent, err = freeradius.GetDate(response, freeradius.LastPacketSent); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_last_packet_sent"], prometheus.GaugeValue, float64(stats.Server.LastPacketSent.Unix()), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_last_packet_sent"], prometheus.GaugeValue, float64(stats.Server.LastPacketSent.Unix()), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.Server.HUPTime, err = freeradius.GetDate(response, freeradius.HUPTime); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_hup_time"], prometheus.GaugeValue, float64(stats.Server.HUPTime.Unix()), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_hup_time"], prometheus.GaugeValue, float64(stats.Server.HUPTime.Unix()), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 		if stats.Server.StartTime, err = freeradius.GetDate(response, freeradius.StartTime); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_start_time"], prometheus.GaugeValue, float64(stats.Server.StartTime.Unix()), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_start_time"], prometheus.GaugeValue, float64(stats.Server.StartTime.Unix()), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.Server.State, err = freeradius.GetInt(response, freeradius.ServerState); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_state"], prometheus.GaugeValue, float64(stats.Server.State), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_state"], prometheus.GaugeValue, float64(stats.Server.State), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.Server.TimeOfDeath, err = freeradius.GetDate(response, freeradius.ServerTimeOfDeath); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_time_of_death"], prometheus.GaugeValue, float64(stats.Server.TimeOfDeath.Unix()), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_time_of_death"], prometheus.GaugeValue, float64(stats.Server.TimeOfDeath.Unix()), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 		if stats.Server.TimeOfLife, err = freeradius.GetDate(response, freeradius.ServerTimeOfLife); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_time_of_life"], prometheus.GaugeValue, float64(stats.Server.TimeOfLife.Unix()), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_time_of_life"], prometheus.GaugeValue, float64(stats.Server.TimeOfLife.Unix()), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.Server.EmaWindow, err = freeradius.GetInt(response, freeradius.EmaWindow); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_ema_window"], prometheus.GaugeValue, float64(stats.Server.EmaWindow), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_ema_window"], prometheus.GaugeValue, float64(stats.Server.EmaWindow), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.Server.EmaUsecWindow1, err = freeradius.GetInt(response, freeradius.EmaUsecWindow1); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_ema_window1_usec"], prometheus.GaugeValue, float64(stats.Server.EmaUsecWindow1), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_ema_window1_usec"], prometheus.GaugeValue, float64(stats.Server.EmaUsecWindow1), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.Server.EmaUsecWindow10, err = freeradius.GetInt(response, freeradius.EmaUsecWindow10); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_ema_window10_usec"], prometheus.GaugeValue, float64(stats.Server.EmaUsecWindow10), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_ema_window10_usec"], prometheus.GaugeValue, float64(stats.Server.EmaUsecWindow10), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.Server.OutstandingRequests, err = freeradius.GetInt(response, freeradius.ServerOutstandingRequests); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_outstanding_requests"], prometheus.GaugeValue, float64(stats.Server.OutstandingRequests), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_outstanding_requests"], prometheus.GaugeValue, float64(stats.Server.OutstandingRequests), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.Server.QueuePPSIn, err = freeradius.GetInt(response, freeradius.QueuePPSIn); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_queue_pps_in"], prometheus.GaugeValue, float64(stats.Server.QueuePPSIn), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_queue_pps_in"], prometheus.GaugeValue, float64(stats.Server.QueuePPSIn), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.Server.QueuePPSOut, err = freeradius.GetInt(response, freeradius.QueuePPSOut); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_queue_pps_out"], prometheus.GaugeValue, float64(stats.Server.QueuePPSOut), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_queue_pps_out"], prometheus.GaugeValue, float64(stats.Server.QueuePPSOut), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.Server.QueueUsePercentage, err = freeradius.GetInt(response, freeradius.QueueUsePercentage); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_queue_use_percentage"], prometheus.GaugeValue, float64(stats.Server.QueuePPSOut), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_queue_use_percentage"], prometheus.GaugeValue, float64(stats.Server.QueuePPSOut), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.Access.Requests, err = freeradius.GetInt(response, freeradius.TotalAccessRequests); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_access_requests"], prometheus.CounterValue, float64(stats.Access.Requests), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_access_requests"], prometheus.CounterValue, float64(stats.Access.Requests), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.Access.Accepts, err = freeradius.GetInt(response, freeradius.TotalAccessAccepts); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_access_accepts"], prometheus.CounterValue, float64(stats.Access.Accepts), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_access_accepts"], prometheus.CounterValue, float64(stats.Access.Accepts), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.Access.Rejects, err = freeradius.GetInt(response, freeradius.TotalAccessRejects); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_access_rejects"], prometheus.CounterValue, float64(stats.Access.Rejects), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_access_rejects"], prometheus.CounterValue, float64(stats.Access.Rejects), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.Access.Challenges, err = freeradius.GetInt(response, freeradius.TotalAccessChallenges); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_access_challenges"], prometheus.CounterValue, float64(stats.Access.Challenges), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_access_challenges"], prometheus.CounterValue, float64(stats.Access.Challenges), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.Auth.Responses, err = freeradius.GetInt(response, freeradius.TotalAuthResponses); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_auth_responses"], prometheus.CounterValue, float64(stats.Auth.Responses), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_auth_responses"], prometheus.CounterValue, float64(stats.Auth.Responses), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.Auth.DuplicateRequests, err = freeradius.GetInt(response, freeradius.TotalAuthDuplicateRequests); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_auth_duplicate_requests"], prometheus.CounterValue, float64(stats.Auth.DuplicateRequests), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_auth_duplicate_requests"], prometheus.CounterValue, float64(stats.Auth.DuplicateRequests), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.Auth.MalformedRequests, err = freeradius.GetInt(response, freeradius.TotalAuthMalformedRequests); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_auth_malformed_requests"], prometheus.CounterValue, float64(stats.Auth.MalformedRequests), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_auth_malformed_requests"], prometheus.CounterValue, float64(stats.Auth.MalformedRequests), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.Auth.InvalidRequests, err = freeradius.GetInt(response, freeradius.TotalAuthInvalidRequests); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_auth_invalid_requests"], prometheus.CounterValue, float64(stats.Auth.InvalidRequests), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_auth_invalid_requests"], prometheus.CounterValue, float64(stats.Auth.InvalidRequests), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.Auth.DroppedRequests, err = freeradius.GetInt(response, freeradius.TotalAuthDroppedRequests); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_auth_dropped_requests"], prometheus.CounterValue, float64(stats.Auth.DroppedRequests), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_auth_dropped_requests"], prometheus.CounterValue, float64(stats.Auth.DroppedRequests), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.Auth.UnknownTypes, err = freeradius.GetInt(response, freeradius.TotalAuthUnknownTypes); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_auth_unknown_types"], prometheus.CounterValue, float64(stats.Auth.UnknownTypes), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_auth_unknown_types"], prometheus.CounterValue, float64(stats.Auth.UnknownTypes), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.ProxyAccess.Requests, err = freeradius.GetInt(response, freeradius.TotalProxyAccessRequests); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_proxy_access_requests"], prometheus.CounterValue, float64(stats.ProxyAccess.Requests), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_proxy_access_requests"], prometheus.CounterValue, float64(stats.ProxyAccess.Requests), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.ProxyAccess.Accepts, err = freeradius.GetInt(response, freeradius.TotalProxyAccessAccepts); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_proxy_access_accepts"], prometheus.CounterValue, float64(stats.ProxyAccess.Accepts), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_proxy_access_accepts"], prometheus.CounterValue, float64(stats.ProxyAccess.Accepts), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.ProxyAccess.Rejects, err = freeradius.GetInt(response, freeradius.TotalProxyAccessRejects); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_proxy_access_rejects"], prometheus.CounterValue, float64(stats.ProxyAccess.Rejects), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_proxy_access_rejects"], prometheus.CounterValue, float64(stats.ProxyAccess.Rejects), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.ProxyAccess.Challenges, err = freeradius.GetInt(response, freeradius.TotalProxyAccessChallenges); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_proxy_access_challenges"], prometheus.CounterValue, float64(stats.ProxyAccess.Challenges), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_proxy_access_challenges"], prometheus.CounterValue, float64(stats.ProxyAccess.Challenges), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.ProxyAuth.Responses, err = freeradius.GetInt(response, freeradius.TotalProxyAuthResponses); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_proxy_auth_responses"], prometheus.CounterValue, float64(stats.ProxyAuth.Responses), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_proxy_auth_responses"], prometheus.CounterValue, float64(stats.ProxyAuth.Responses), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.ProxyAuth.DuplicateRequests, err = freeradius.GetInt(response, freeradius.TotalProxyAuthDuplicateRequests); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_proxy_auth_duplicate_requests"], prometheus.CounterValue, float64(stats.ProxyAuth.DuplicateRequests), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_proxy_auth_duplicate_requests"], prometheus.CounterValue, float64(stats.ProxyAuth.DuplicateRequests), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.ProxyAuth.MalformedRequests, err = freeradius.GetInt(response, freeradius.TotalProxyAuthMalformedRequests); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_proxy_auth_malformed_requests"], prometheus.CounterValue, float64(stats.ProxyAuth.MalformedRequests), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_proxy_auth_malformed_requests"], prometheus.CounterValue, float64(stats.ProxyAuth.MalformedRequests), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.ProxyAuth.InvalidRequests, err = freeradius.GetInt(response, freeradius.TotalProxyAuthInvalidRequests); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_proxy_auth_invalid_requests"], prometheus.CounterValue, float64(stats.ProxyAuth.InvalidRequests), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_proxy_auth_invalid_requests"], prometheus.CounterValue, float64(stats.ProxyAuth.InvalidRequests), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.ProxyAuth.DroppedRequests, err = freeradius.GetInt(response, freeradius.TotalProxyAuthDroppedRequests); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_proxy_auth_dropped_requests"], prometheus.CounterValue, float64(stats.ProxyAuth.DroppedRequests), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_proxy_auth_dropped_requests"], prometheus.CounterValue, float64(stats.ProxyAuth.DroppedRequests), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.ProxyAuth.UnknownTypes, err = freeradius.GetInt(response, freeradius.TotalProxyAuthUnknownTypes); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_proxy_auth_unknown_types"], prometheus.CounterValue, float64(stats.ProxyAuth.UnknownTypes), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_proxy_auth_unknown_types"], prometheus.CounterValue, float64(stats.ProxyAuth.UnknownTypes), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.Accounting.Requests, err = freeradius.GetInt(response, freeradius.TotalAccountingRequests); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_acct_requests"], prometheus.CounterValue, float64(stats.Accounting.Requests), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_acct_requests"], prometheus.CounterValue, float64(stats.Accounting.Requests), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.Accounting.Responses, err = freeradius.GetInt(response, freeradius.TotalAccountingResponses); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_acct_responses"], prometheus.CounterValue, float64(stats.Accounting.Responses), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_acct_responses"], prometheus.CounterValue, float64(stats.Accounting.Responses), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.Accounting.DuplicateRequests, err = freeradius.GetInt(response, freeradius.TotalAcctDuplicateRequests); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_acct_duplicate_requests"], prometheus.CounterValue, float64(stats.Accounting.DuplicateRequests), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_acct_duplicate_requests"], prometheus.CounterValue, float64(stats.Accounting.DuplicateRequests), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.Accounting.MalformedRequests, err = freeradius.GetInt(response, freeradius.TotalAcctMalformedRequests); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_acct_malformed_requests"], prometheus.CounterValue, float64(stats.Accounting.MalformedRequests), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_acct_malformed_requests"], prometheus.CounterValue, float64(stats.Accounting.MalformedRequests), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.Accounting.InvalidRequests, err = freeradius.GetInt(response, freeradius.TotalAcctInvalidRequests); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_acct_invalid_requests"], prometheus.CounterValue, float64(stats.Accounting.InvalidRequests), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_acct_invalid_requests"], prometheus.CounterValue, float64(stats.Accounting.InvalidRequests), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.Accounting.DroppedRequests, err = freeradius.GetInt(response, freeradius.TotalAcctDroppedRequests); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_acct_dropped_requests"], prometheus.CounterValue, float64(stats.Accounting.DroppedRequests), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_acct_dropped_requests"], prometheus.CounterValue, float64(stats.Accounting.DroppedRequests), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.Accounting.UnknownTypes, err = freeradius.GetInt(response, freeradius.TotalAcctUnknownTypes); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_acct_unknown_types"], prometheus.CounterValue, float64(stats.Accounting.UnknownTypes), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_acct_unknown_types"], prometheus.CounterValue, float64(stats.Accounting.UnknownTypes), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.ProxyAccounting.Requests, err = freeradius.GetInt(response, freeradius.TotalProxyAccountingRequests); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_proxy_acct_requests"], prometheus.CounterValue, float64(stats.ProxyAccounting.Requests), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_proxy_acct_requests"], prometheus.CounterValue, float64(stats.ProxyAccounting.Requests), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.ProxyAccounting.Responses, err = freeradius.GetInt(response, freeradius.TotalProxyAccountingResponses); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_proxy_acct_responses"], prometheus.CounterValue, float64(stats.ProxyAccounting.Responses), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_proxy_acct_responses"], prometheus.CounterValue, float64(stats.ProxyAccounting.Responses), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.ProxyAccounting.DuplicateRequests, err = freeradius.GetInt(response, freeradius.TotalProxyAcctDuplicateRequests); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_proxy_acct_duplicate_requests"], prometheus.CounterValue, float64(stats.ProxyAccounting.DuplicateRequests), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_proxy_acct_duplicate_requests"], prometheus.CounterValue, float64(stats.ProxyAccounting.DuplicateRequests), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.ProxyAccounting.MalformedRequests, err = freeradius.GetInt(response, freeradius.TotalProxyAcctMalformedRequests); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_proxy_acct_malformed_requests"], prometheus.CounterValue, float64(stats.ProxyAccounting.MalformedRequests), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_proxy_acct_malformed_requests"], prometheus.CounterValue, float64(stats.ProxyAccounting.MalformedRequests), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.ProxyAccounting.InvalidRequests, err = freeradius.GetInt(response, freeradius.TotalProxyAcctInvalidRequests); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_proxy_acct_invalid_requests"], prometheus.CounterValue, float64(stats.ProxyAccounting.InvalidRequests), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_proxy_acct_invalid_requests"], prometheus.CounterValue, float64(stats.ProxyAccounting.InvalidRequests), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.ProxyAccounting.DroppedRequests, err = freeradius.GetInt(response, freeradius.TotalProxyAcctDroppedRequests); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_proxy_acct_dropped_requests"], prometheus.CounterValue, float64(stats.ProxyAccounting.DroppedRequests), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_proxy_acct_dropped_requests"], prometheus.CounterValue, float64(stats.ProxyAccounting.DroppedRequests), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.ProxyAccounting.UnknownTypes, err = freeradius.GetInt(response, freeradius.TotalProxyAcctUnknownTypes); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_proxy_acct_unknown_types"], prometheus.CounterValue, float64(stats.ProxyAccounting.UnknownTypes), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_total_proxy_acct_unknown_types"], prometheus.CounterValue, float64(stats.ProxyAccounting.UnknownTypes), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.Internal.QueueLenInternal, err = freeradius.GetInt(response, freeradius.QueueLenInternal); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_queue_len_internal"], prometheus.GaugeValue, float64(stats.Internal.QueueLenInternal), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_queue_len_internal"], prometheus.GaugeValue, float64(stats.Internal.QueueLenInternal), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.Internal.QueueLenProxy, err = freeradius.GetInt(response, freeradius.QueueLenProxy); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_queue_len_proxy"], prometheus.GaugeValue, float64(stats.Internal.QueueLenProxy), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_queue_len_proxy"], prometheus.GaugeValue, float64(stats.Internal.QueueLenProxy), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.Internal.QueueLenAuth, err = freeradius.GetInt(response, freeradius.QueueLenAuth); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_queue_len_auth"], prometheus.GaugeValue, float64(stats.Internal.QueueLenAuth), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_queue_len_auth"], prometheus.GaugeValue, float64(stats.Internal.QueueLenAuth), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.Internal.QueueLenAcct, err = freeradius.GetInt(response, freeradius.QueueLenAcct); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_queue_len_acct"], prometheus.GaugeValue, float64(stats.Internal.QueueLenAcct), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_queue_len_acct"], prometheus.GaugeValue, float64(stats.Internal.QueueLenAcct), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
 
 		if stats.Internal.QueueLenDetail, err = freeradius.GetInt(response, freeradius.QueueLenDetail); err == nil {
-			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_queue_len_detail"], prometheus.GaugeValue, float64(stats.Internal.QueueLenDetail), p.address))
+			allStats = append(allStats, prometheus.MustNewConstMetric(f.metrics["freeradius_queue_len_detail"], prometheus.GaugeValue, float64(stats.Internal.QueueLenDetail), p.alias))
 		} else if err != nil && err != radius.ErrNoAttribute {
 			log.Println(err)
 		}
